@@ -83,6 +83,20 @@ async def _fetch_forecast(region: str) -> bool:
 
 # ───────────────────────── 定时任务 ──────────────────────────────
 
+async def _do_forecast_update():
+    """执行一次预测线更新"""
+    cfg     = get_config()
+    regions = cfg.get("forecast_regions", ["cn", "jp"])
+    retry   = cfg.get("forecast_error_retry", 10) * 60
+
+    logger.info("[sk_forecast] 开始更新预测线数据...")
+    for region in regions:
+        ok = await _fetch_forecast(region)
+        if not ok:
+            logger.warning(f"[sk_forecast] {region} 请求失败，{cfg.get('forecast_error_retry', 10)} 分钟后重试")
+            await asyncio.sleep(retry)
+            await _fetch_forecast(region)
+
 async def start_forecast_loop():
     cfg     = get_config()
     enabled = cfg.get("forecast_enabled", True)
@@ -90,23 +104,16 @@ async def start_forecast_loop():
         logger.info("[sk_forecast] 预测线功能已关闭")
         return
 
-    regions  = cfg.get("forecast_regions", ["cn", "jp"])
     interval = cfg.get("forecast_update_interval", 10) * 60
-    retry    = cfg.get("forecast_error_retry", 10) * 60
 
+    # 启动时立即请求一次
     logger.info("[sk_forecast] 启动时请求预测线数据...")
-    for region in regions:
-        await _fetch_forecast(region)
+    await _do_forecast_update()
 
+    # 之后严格按间隔定时执行
     while True:
         await asyncio.sleep(interval)
-        logger.info("[sk_forecast] 开始更新预测线数据...")
-        for region in regions:
-            ok = await _fetch_forecast(region)
-            if not ok:
-                logger.warning(f"[sk_forecast] {region} 请求失败，{cfg.get('forecast_error_retry', 10)} 分钟后重试")
-                await asyncio.sleep(retry)
-                await _fetch_forecast(region)
+        await _do_forecast_update()
 
 # ───────────────────────── 格式化输出 ────────────────────────────
 
