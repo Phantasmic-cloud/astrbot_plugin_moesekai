@@ -9,12 +9,12 @@ from astrbot.api.event.filter import PermissionType
 from astrbot.api import AstrBotConfig, logger
 import astrbot.api.message_components as Comp
 
-from src.common import set_config, is_group_enabled, set_group_enabled, SERVER_NAME
-from src.asset import start_asset_loop
-from src.sk_forecast import start_forecast_loop, handle_forecast
-from src.bind import handle_bind, handle_switch_server
-from src.profile import handle_profile
-from src.attach import handle_query_id, handle_user_stats
+from .src.common import set_config, is_group_enabled, set_group_enabled, SERVER_NAME
+from .src.asset import start_asset_loop
+from .src.sk_forecast import start_forecast_loop, handle_forecast
+from .src.bind import handle_bind, handle_switch_server
+from .src.profile import handle_profile
+from .src.attach import handle_query_id, handle_user_stats
 
 
 @register(
@@ -80,34 +80,37 @@ class MoesekaiPlugin(Star):
     # ───────────────────────── 绑定指令 ──────────────────────────
 
     @filter.command("绑定", alias={"bind"})
-    async def cmd_bind(self, event: AstrMessageEvent, message: str = ""):
+    async def cmd_bind(self, event: AstrMessageEvent):
         if not self._check_group(event): return
-        sekai_id = message.strip()
+        sekai_id = event.message_str.split(None, 1)[1].strip() if len(event.message_str.split(None, 1)) > 1 else ""
         result   = await handle_bind(event, sekai_id, None)
         yield event.plain_result(result)
 
     @filter.command("cn绑定")
-    async def cmd_cn_bind(self, event: AstrMessageEvent, message: str = ""):
+    async def cmd_cn_bind(self, event: AstrMessageEvent):
         if not self._check_group(event): return
-        result = await handle_bind(event, message.strip(), "cn")
+        sekai_id = event.message_str.split(None, 1)[1].strip() if len(event.message_str.split(None, 1)) > 1 else ""
+        result = await handle_bind(event, sekai_id, "cn")
         yield event.plain_result(result)
 
     @filter.command("tw绑定")
-    async def cmd_tw_bind(self, event: AstrMessageEvent, message: str = ""):
+    async def cmd_tw_bind(self, event: AstrMessageEvent):
         if not self._check_group(event): return
-        result = await handle_bind(event, message.strip(), "tw")
+        sekai_id = event.message_str.split(None, 1)[1].strip() if len(event.message_str.split(None, 1)) > 1 else ""
+        result = await handle_bind(event, sekai_id, "tw")
         yield event.plain_result(result)
 
     @filter.command("jp绑定")
-    async def cmd_jp_bind(self, event: AstrMessageEvent, message: str = ""):
+    async def cmd_jp_bind(self, event: AstrMessageEvent):
         if not self._check_group(event): return
-        result = await handle_bind(event, message.strip(), "jp")
+        sekai_id = event.message_str.split(None, 1)[1].strip() if len(event.message_str.split(None, 1)) > 1 else ""
+        result = await handle_bind(event, sekai_id, "jp")
         yield event.plain_result(result)
 
     @filter.command("pjsk服务器")
-    async def cmd_server(self, event: AstrMessageEvent, message: str = ""):
+    async def cmd_server(self, event: AstrMessageEvent):
         if not self._check_group(event): return
-        server = message.strip().lower() or None
+        server = (event.message_str.split(None, 1)[1].strip().lower() if len(event.message_str.split(None, 1)) > 1 else "") or None
         result = await handle_switch_server(event, server)
         yield event.plain_result(result)
 
