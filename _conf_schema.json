@@ -1,0 +1,80 @@
+{
+  "api_base": {
+    "description": "Moesekai API 基础地址",
+    "type": "string",
+    "default": "https://sekaiprofile.exmeaning.com",
+    "hint": "Moesekai 个人资料页的 API 地址"
+  },
+  "token": {
+    "description": "Moesekai API Token",
+    "type": "string",
+    "default": "",
+    "hint": "从 Moesekai 获取的 API Token"
+  },
+  "screenshot_delay": {
+    "description": "个人信息截图等待时间（秒）",
+    "type": "int",
+    "default": 5,
+    "hint": "等待页面渲染完成后再截图，默认5秒"
+  },
+  "masterdata_url_jp": {
+    "description": "日服 MasterData 数据源地址",
+    "type": "string",
+    "default": "https://raw.githubusercontent.com/Sekai-World/sekai-master-db-diff/main/",
+    "hint": "日服 events.json 的 GitHub raw 基础地址"
+  },
+  "masterdata_url_cn": {
+    "description": "国服 MasterData 数据源地址",
+    "type": "string",
+    "default": "https://raw.githubusercontent.com/Sekai-World/sekai-master-db-cn-diff/main/",
+    "hint": "国服 events.json 的 GitHub raw 基础地址"
+  },
+  "masterdata_fetch_interval": {
+    "description": "MasterData 检查更新间隔（分钟）",
+    "type": "int",
+    "default": 60,
+    "hint": "每隔多少分钟检查一次 MasterData 是否有更新"
+  },
+  "masterdata_fetch_max_retry": {
+    "description": "MasterData 最大连续失败重试次数",
+    "type": "int",
+    "default": 3,
+    "hint": "检查更新失败后立即重试的最大次数"
+  },
+  "forecast_enabled": {
+    "description": "是否启用预测线功能",
+    "type": "bool",
+    "default": true,
+    "hint": "关闭后所有预测线指令均不可用"
+  },
+  "forecast_regions": {
+    "description": "启用预测线的服务器列表",
+    "type": "list",
+    "default": ["cn", "jp"],
+    "hint": "可选值：cn / jp / tw，移除某项即停用该服务器的预测线"
+  },
+  "forecast_update_interval": {
+    "description": "预测线数据请求间隔（分钟）",
+    "type": "int",
+    "default": 10,
+    "hint": "每隔多少分钟请求一次预测线 API"
+  },
+  "forecast_error_retry": {
+    "description": "预测线请求失败后重试间隔（分钟）",
+    "type": "int",
+    "default": 10,
+    "hint": "预测线请求失败后等待多少分钟再重试"
+  },
+  "forecast_url": {
+    "description": "预测线 API 地址模板",
+    "type": "string",
+    "default": "https://sekaibangdan.exmeaning.com/api/public/v1/{region}data/{event_id}",
+    "hint": "国服 {region} 为空，日服 {region} 为 jp/"
+  },
+  "forecast_ranks": {
+    "description": "预测线显示的档位列表",
+    "type": "list",
+    "default": [50, 100, 200, 300, 500, 1000, 2000, 3000, 5000, 10000, 50000],
+    "hint": "需要显示的排名档位"
+  }
+}
