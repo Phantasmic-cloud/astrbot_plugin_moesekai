@@ -29,9 +29,11 @@ class MoesekaiPlugin(Star):
         set_config(dict(config))
 
     async def initialize(self):
-        # 启动后台定时任务
-        asyncio.create_task(start_asset_loop())
-        asyncio.create_task(start_forecast_loop())
+        # 防止重复启动
+        if not getattr(MoesekaiPlugin, "_loops_started", False):
+            MoesekaiPlugin._loops_started = True
+            asyncio.create_task(start_asset_loop())
+            asyncio.create_task(start_forecast_loop())
 
     async def terminate(self):
         pass
