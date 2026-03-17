@@ -1,4 +1,10 @@
 {
+  "require_slash": {
+    "description": "指令是否需要 / 前缀才能触发",
+    "type": "bool",
+    "default": true,
+    "hint": "开启后只有 /cn绑定 才能触发，关闭后 cn绑定 也能触发"
+  },
   "api_base": {
     "description": "Moesekai API 基础地址",
     "type": "string",
@@ -50,7 +56,10 @@
   "forecast_regions": {
     "description": "启用预测线的服务器列表",
     "type": "list",
-    "default": ["cn", "jp"],
+    "default": [
+      "cn",
+      "jp"
+    ],
     "hint": "可选值：cn / jp / tw，移除某项即停用该服务器的预测线"
   },
   "forecast_update_interval": {
@@ -74,7 +83,19 @@
   "forecast_ranks": {
     "description": "预测线显示的档位列表",
     "type": "list",
-    "default": [50, 100, 200, 300, 500, 1000, 2000, 3000, 5000, 10000, 50000],
+    "default": [
+      50,
+      100,
+      200,
+      300,
+      500,
+      1000,
+      2000,
+      3000,
+      5000,
+      10000,
+      50000
+    ],
     "hint": "需要显示的排名档位"
   }
 }
