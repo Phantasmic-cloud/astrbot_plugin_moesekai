@@ -189,8 +189,15 @@ async def handle_forecast(event, server: str | None) -> str:
     if target not in forecast_regions:
         return f"暂不支持{SERVER_NAME.get(target, target)}的预测"
 
+    current_event = get_current_event(target)
+    if not current_event:
+        return f"{SERVER_NAME.get(target, target)}当前没有进行中的活动"
+
     cache = _load_forecast(target)
     if not cache:
         return f"{SERVER_NAME.get(target, target)}预测线数据暂未就绪，请稍后再试"
+
+    if cache.get("event_id") != current_event.get("id"):
+        return f"{SERVER_NAME.get(target, target)}预测线数据更新中，请稍后再试"
 
     return build_forecast_msg(target, cache)
