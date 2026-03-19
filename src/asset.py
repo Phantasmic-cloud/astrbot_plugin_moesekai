@@ -101,6 +101,6 @@ def get_current_event(region: str) -> dict | None:
 
     now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
     for event in events:
-        if event.get("startAt", 0) <= now_ms <= event.get("closedAt", 0):
+        if event.get("startAt", 0) <= now_ms <= event.get("aggregateAt", event.get("closedAt", 0)):
             return event
     return None
