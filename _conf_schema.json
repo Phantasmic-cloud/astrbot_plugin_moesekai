@@ -53,6 +53,12 @@
     "default": true,
     "hint": "关闭后所有预测线指令均不可用"
   },
+  "forecast_image_enabled": {
+    "description": "预测线是否以图片形式发送",
+    "type": "bool",
+    "default": false,
+    "hint": "开启后以图片形式发送预测线，关闭则发送文字版"
+  },
   "forecast_regions": {
     "description": "启用预测线的服务器列表",
     "type": "list",
@@ -77,8 +83,8 @@
   "forecast_url": {
     "description": "预测线 API 地址模板",
     "type": "string",
-    "default": "https://sekaibangdan.exmeaning.com/api/public/v1/{region}data/{event_id}",
-    "hint": "国服 {region} 为空，日服 {region} 为 jp/"
+    "default": "https://rk.exmeaning.com/public/event/{event_id}/latest?region={region}",
+    "hint": "{event_id} 替换为活动ID，{region} 替换为服务器代码（cn/jp/tw）"
   },
   "forecast_ranks": {
     "description": "预测线显示的档位列表",
