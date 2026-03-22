@@ -17,11 +17,25 @@ from .src.profile import handle_profile
 from .src.attach import handle_query_id, handle_user_stats
 
 
+async def _send_forecast(event, server):
+    """处理预测线发送，自动判断文字/图片模式"""
+    import tempfile, os
+    result = await handle_forecast(event, server)
+    if isinstance(result, tuple) and result[0] == "image":
+        img_bytes = result[1]
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
+            f.write(img_bytes)
+            tmp_path = f.name
+        # 不在finally里删，让AstrBot读完文件后由系统清理临时目录
+        return event.chain_result([Comp.Image.fromFileSystem(tmp_path)])
+    return event.plain_result(result)
+
+
 @register(
     "astrbot_plugin_moesekai",
     "Phantasmic",
     "Project Sekai 玩家数据查询服务（Moesekai）",
-    "1.1.0",
+    "1.2.0",
 )
 class MoesekaiPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -223,15 +237,15 @@ class MoesekaiPlugin(Star):
 
         # ── 预测线 ──
         if self._check_cmd(event, "skp", "sk预测", "榜线预测"):
-            yield event.plain_result(await handle_forecast(event, None))
+            yield (await _send_forecast(event, None))
             return
 
         if self._check_cmd(event, "cnskp"):
-            yield event.plain_result(await handle_forecast(event, "cn"))
+            yield (await _send_forecast(event, "cn"))
             return
 
         if self._check_cmd(event, "jpskp"):
-            yield event.plain_result(await handle_forecast(event, "jp"))
+            yield (await _send_forecast(event, "jp"))
             return
 
         if self._check_cmd(event, "twskp"):
