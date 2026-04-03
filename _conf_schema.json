@@ -35,6 +35,18 @@
     "default": "./data/bg/",
     "hint": "填入目录路径后从中随机选取一张图片作为背景（支持 png/jpg/jpeg/webp）；留空则使用默认渐变背景。支持相对路径（相对于插件根目录）或绝对路径，默认目录为 ./data/bg/"
   },
+  "bg_overlay_opacity": {
+    "description": "自定义背景遮罩深度",
+    "type": "float",
+    "default": 0.0,
+    "hint": "在自定义背景图上叠一层黑色蒙版，0 为不遮，1 为全黑，推荐 0.2~0.4；仅自定义背景启用时生效"
+  },
+  "card_opacity": {
+    "description": "磨砂框透明度",
+    "type": "float",
+    "default": 0.18,
+    "hint": "顶部信息框和数据表格的背景透明度，0 为完全透明，1 为完全不透明，默认 0.18"
+  },
   "forecast_regions": {
     "description": "启用预测线的服务器列表",
     "type": "list",
