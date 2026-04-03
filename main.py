@@ -12,9 +12,6 @@ import astrbot.api.message_components as Comp
 from .src.common import set_config, is_group_enabled, set_group_enabled, SERVER_NAME
 from .src.asset import start_asset_loop
 from .src.sk_forecast import start_forecast_loop, handle_forecast
-from .src.bind import handle_bind, handle_switch_server
-from .src.profile import handle_profile
-from .src.attach import handle_query_id, handle_user_stats
 
 
 async def _send_forecast(event, server):
@@ -26,7 +23,6 @@ async def _send_forecast(event, server):
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
             f.write(img_bytes)
             tmp_path = f.name
-        # 不在finally里删，让AstrBot读完文件后由系统清理临时目录
         return event.chain_result([Comp.Image.fromFileSystem(tmp_path)])
     return event.plain_result(result)
 
@@ -34,8 +30,8 @@ async def _send_forecast(event, server):
 @register(
     "astrbot_plugin_moesekai",
     "Phantasmic",
-    "Project Sekai 玩家数据查询服务（Moesekai）",
-    "1.2.0",
+    "Project Sekai 榜线与预测线查询（Moesekai）",
+    "1.3.0",
 )
 class MoesekaiPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
@@ -59,48 +55,23 @@ class MoesekaiPlugin(Star):
             return True
         return is_group_enabled(str(gid))
 
-
     def _get_cmd_and_args(self, event: AstrMessageEvent) -> tuple[str, str]:
-        """
-        提取指令名和参数，自动去掉开头的 /
-        返回 (full_msg_no_slash, first_word)
-        """
         msg = event.message_str.strip()
         if msg.startswith("/"):
             msg = msg[1:]
         return msg.lower(), msg.split(None, 1)[1].strip() if len(msg.split(None, 1)) > 1 else ""
 
     def _match_cmd(self, full_msg: str, cmd: str) -> bool:
-        """检查消息是否匹配指令（支持多词指令如 moesekai on）"""
         cmd = cmd.lower()
         return full_msg == cmd or full_msg.startswith(cmd + " ")
 
-    def _extract_args(self, full_msg: str, cmd: str) -> str:
-        """提取指令后的参数"""
-        cmd = cmd.lower()
-        if full_msg.startswith(cmd + " "):
-            return full_msg[len(cmd):].strip()
-        return ""
-
     def _check_cmd(self, event: AstrMessageEvent, *cmds: str) -> bool:
-        """
-        检查消息是否匹配指定指令（支持多个别名）
-        require_slash=True：只响应通过唤醒词触发的消息（即带/的）
-        require_slash=False：所有消息都响应
-        """
         from .src.common import get_config
         require_slash = get_config().get("require_slash", True)
         if require_slash and not event.is_at_or_wake_command:
             return False
         full_msg, _ = self._get_cmd_and_args(event)
         return any(self._match_cmd(full_msg, c) for c in cmds)
-
-    def _get_args(self, event: AstrMessageEvent, cmd: str = "") -> str:
-        full_msg, _ = self._get_cmd_and_args(event)
-        if cmd:
-            return self._extract_args(full_msg, cmd)
-        parts = full_msg.split(None, 1)
-        return parts[1].strip() if len(parts) > 1 else ""
 
     # ───────────────────────── 消息监听 ──────────────────────────
 
@@ -143,101 +114,9 @@ class MoesekaiPlugin(Star):
         if not self._check_group(event):
             return
 
-        # ── 绑定 ──
-        if self._check_cmd(event, "绑定", "bind"):
-            yield event.plain_result(await handle_bind(event, self._get_args(event), None))
-            return
-
-        if self._check_cmd(event, "cn绑定"):
-            yield event.plain_result(await handle_bind(event, self._get_args(event), "cn"))
-            return
-
-        if self._check_cmd(event, "tw绑定"):
-            yield event.plain_result(await handle_bind(event, self._get_args(event), "tw"))
-            return
-
-        if self._check_cmd(event, "jp绑定"):
-            yield event.plain_result(await handle_bind(event, self._get_args(event), "jp"))
-            return
-
-        if self._check_cmd(event, "pjsk服务器"):
-            server = self._get_args(event).lower() or None
-            yield event.plain_result(await handle_switch_server(event, server))
-            return
-
-        # ── 个人信息 ──
-        if self._check_cmd(event, "个人信息"):
-            err, path = await handle_profile(event, None)
-            if err:
-                yield event.plain_result(err)
-            else:
-                try:
-                    yield event.chain_result([Comp.Image.fromFileSystem(str(path))])
-                finally:
-                    if path:
-                        try: path.unlink(missing_ok=True)
-                        except: pass
-            return
-
-        if self._check_cmd(event, "cn个人信息"):
-            err, path = await handle_profile(event, "cn")
-            if err:
-                yield event.plain_result(err)
-            else:
-                try:
-                    yield event.chain_result([Comp.Image.fromFileSystem(str(path))])
-                finally:
-                    if path:
-                        try: path.unlink(missing_ok=True)
-                        except: pass
-            return
-
-        if self._check_cmd(event, "tw个人信息"):
-            err, path = await handle_profile(event, "tw")
-            if err:
-                yield event.plain_result(err)
-            else:
-                try:
-                    yield event.chain_result([Comp.Image.fromFileSystem(str(path))])
-                finally:
-                    if path:
-                        try: path.unlink(missing_ok=True)
-                        except: pass
-            return
-
-        if self._check_cmd(event, "jp个人信息"):
-            err, path = await handle_profile(event, "jp")
-            if err:
-                yield event.plain_result(err)
-            else:
-                try:
-                    yield event.chain_result([Comp.Image.fromFileSystem(str(path))])
-                finally:
-                    if path:
-                        try: path.unlink(missing_ok=True)
-                        except: pass
-            return
-
-        # ── 查询id ──
-        if self._check_cmd(event, "id"):
-            yield event.plain_result(await handle_query_id(event, None))
-            return
-
-        if self._check_cmd(event, "cnid"):
-            yield event.plain_result(await handle_query_id(event, "cn"))
-            return
-
-        if self._check_cmd(event, "twid"):
-            yield event.plain_result(await handle_query_id(event, "tw"))
-            return
-
-        if self._check_cmd(event, "jpid"):
-            yield event.plain_result(await handle_query_id(event, "jp"))
-            return
-
         # ── 预测线 ──
         if self._check_cmd(event, "skp", "sk预测", "榜线预测"):
-            yield (await _send_forecast(event, None))
+            yield (await _send_forecast(event, "cn"))
             return
 
         if self._check_cmd(event, "cnskp"):
@@ -250,10 +129,4 @@ class MoesekaiPlugin(Star):
 
         if self._check_cmd(event, "twskp"):
             yield event.plain_result("暂不支持台服的预测")
-            return
-
-        # ── 用户统计 ──
-        if self._check_cmd(event, "用户统计"):
-            if not is_admin: return
-            yield event.plain_result(await handle_user_stats())
             return

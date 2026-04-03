@@ -1,5 +1,5 @@
 name: moesekai
 desc: Project Sekai 玩家数据查询服务，支持绑定账号、个人信息截图、榜线预测等功能
-version: v1.2.0
+version: v1.3.0
 author: Phantasmic
 repo: https://github.com/Phantasmic-cloud/astrbot_plugin_moesekai
