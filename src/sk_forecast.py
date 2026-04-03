@@ -243,8 +243,9 @@ def _build_forecast_html(region: str, cache: dict, current_event: dict) -> str:
         remain_str = "活动已结束"
 
     # ── 背景图 ──────────────────────────────────────────────────
-    bg_dir_cfg  = cfg.get("bg_dir", "").strip()
-    bg_body_css = ""   # 有自定义背景时填入 background CSS
+    bg_overlay_op = float(cfg.get("bg_overlay_opacity", 0.0))  # 仅自定义背景生效
+    bg_dir_cfg    = cfg.get("bg_dir", "").strip()
+    bg_body_css   = ""   # 有自定义背景时填入 background CSS
     use_custom_bg = False
 
     if bg_dir_cfg:
@@ -276,6 +277,12 @@ def _build_forecast_html(region: str, cache: dict, current_event: dict) -> str:
             _oy      = random.randint(0, _nh - _CANVAS_H)
             _img     = _img.crop((_ox, _oy, _ox + _CANVAS_W, _oy + _CANVAS_H))
 
+            # 背景遮罩：用 PIL 直接压暗图片，不影响磨砂框和文字
+            if bg_overlay_op > 0:
+                from PIL import ImageEnhance as _IE
+                _brightness = max(0.0, 1.0 - bg_overlay_op)
+                _img = _IE.Brightness(_img).enhance(_brightness)
+
             _buf = _io.BytesIO()
             _img.save(_buf, format="JPEG", quality=88)
             _bg_b64 = base64.b64encode(_buf.getvalue()).decode()
@@ -298,6 +305,7 @@ def _build_forecast_html(region: str, cache: dict, current_event: dict) -> str:
 
     # deployed_by
     deployed_by = cfg.get("deployed_by", "").strip() or "xxx"
+    card_op     = float(cfg.get("card_opacity", 0.18))
 
     # dark_text 颜色开关
     dark_text    = cfg.get("dark_text", True)
@@ -368,9 +376,10 @@ body {{
     {bg_body_css if use_custom_bg else f"background: linear-gradient({gradient});"}
     padding: 20px;
     padding-bottom: 6px;
+    position: relative;
 }}
 .top-card {{
-    background: rgba(255,255,255,0.18);
+    background: rgba(255,255,255,{card_op});
     backdrop-filter: blur(8px);
     border-radius: 14px;
     padding: 16px 18px;
@@ -420,7 +429,7 @@ body {{
     align-self: center;
 }}
 .table-card {{
-    background: rgba(255,255,255,0.18);
+    background: rgba(255,255,255,{card_op});
     backdrop-filter: blur(8px);
     border-radius: 14px;
     overflow: hidden;
