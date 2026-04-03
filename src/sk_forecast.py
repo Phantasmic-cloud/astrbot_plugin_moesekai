@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from astrbot import logger
 
-from .common import get_config, load_binds, get_user_binds, has_any_bind, SERVER_NAME
+from .common import get_config, SERVER_NAME
 from .asset import get_current_event
 
 # ───────────────────────── 路径工具 ──────────────────────────────
@@ -165,28 +165,16 @@ def build_forecast_msg(region: str, cache: dict) -> str:
         f"预测时间: {pred_time}",
         f"获取时间: {fetch_time}",
         "数据来源: pjsk.moe(by 東雪)",
-        "From Phantasmic(郁郁葱葱)",
+        f"Deployed by {cfg.get('deployed_by', '').strip() or 'xxx'}",
     ]
     return "\n".join(lines)
 
 # ───────────────────────── 指令处理函数 ──────────────────────────
 
-async def handle_forecast(event, server: str | None) -> str:
+async def handle_forecast(event, server: str) -> str:
     cfg              = get_config()
     forecast_regions = cfg.get("forecast_regions", ["cn", "jp"])
-
-    # 确定服务器
-    if server:
-        target = server
-    else:
-        qq    = str(event.get_sender_id())
-        binds = load_binds()
-        user  = get_user_binds(binds, qq)
-        if not has_any_bind(user):
-            return "你还没绑定id！"
-        target = user.get("default")
-        if not target or not user.get(target):
-            return "请先使用 `/pjsk服务器 cn/tw/jp` 设置默认服务器"
+    target           = server
 
     if target not in forecast_regions:
         return f"暂不支持{SERVER_NAME.get(target, target)}的预测"
@@ -254,9 +242,52 @@ def _build_forecast_html(region: str, cache: dict, current_event: dict) -> str:
     else:
         remain_str = "活动已结束"
 
-    # 随机主题
+    # ── 背景图 ──────────────────────────────────────────────────
+    bg_dir_cfg  = cfg.get("bg_dir", "").strip()
+    bg_body_css = ""   # 有自定义背景时填入 background CSS
+    use_custom_bg = False
+
+    if bg_dir_cfg:
+        from pathlib import Path as _Path
+        from PIL import Image as _Image
+        import io as _io
+
+        _bg_dir = _Path(bg_dir_cfg)
+        # 相对路径按插件根目录解析
+        if not _bg_dir.is_absolute():
+            _bg_dir = (_Path(__file__).parent.parent / _bg_dir).resolve()
+        _bg_imgs = []
+        if _bg_dir.exists():
+            for _ext in ("*.png", "*.jpg", "*.jpeg", "*.webp"):
+                _bg_imgs.extend(_bg_dir.glob(_ext))
+
+        if _bg_imgs:
+            # 目标画布尺寸（宽固定660，高先用占位值，Playwright截全高）
+            _CANVAS_W = 660
+            _CANVAS_H = 900   # 足够高，裁剪后图片会被CSS拉伸覆盖
+
+            _img = _Image.open(random.choice(_bg_imgs)).convert("RGB")
+            _sw, _sh = _img.size
+            _scale   = max(_CANVAS_W / _sw, _CANVAS_H / _sh)
+            _nw      = max(_CANVAS_W, int(_sw * _scale))
+            _nh      = max(_CANVAS_H, int(_sh * _scale))
+            _img     = _img.resize((_nw, _nh), _Image.LANCZOS)
+            _ox      = random.randint(0, _nw - _CANVAS_W)
+            _oy      = random.randint(0, _nh - _CANVAS_H)
+            _img     = _img.crop((_ox, _oy, _ox + _CANVAS_W, _oy + _CANVAS_H))
+
+            _buf = _io.BytesIO()
+            _img.save(_buf, format="JPEG", quality=88)
+            _bg_b64 = base64.b64encode(_buf.getvalue()).decode()
+            bg_body_css = f"background: url('data:image/jpeg;base64,{_bg_b64}') center/cover no-repeat;"
+            use_custom_bg = True
+
+    # ── 主题（无自定义背景时使用渐变）────────────────────────────
     theme = random.choice(_THEMES)
     gradient, logo_file = theme
+    if use_custom_bg:
+        # 自定义背景时随机挑 logo，不绑定主题色
+        logo_file = random.choice([t[1] for t in _THEMES])
 
     # logo base64
     logo_path = data_dir() / "moelogo" / logo_file
@@ -265,7 +296,18 @@ def _build_forecast_html(region: str, cache: dict, current_event: dict) -> str:
         logo_b64 = base64.b64encode(logo_path.read_bytes()).decode()
     logo_src = f"data:image/png;base64,{logo_b64}" if logo_b64 else ""
 
-    # 字体base64
+    # deployed_by
+    deployed_by = cfg.get("deployed_by", "").strip() or "xxx"
+
+    # dark_text 颜色开关
+    dark_text    = cfg.get("dark_text", True)
+    c_main       = "#1a1a1a" if dark_text else "#ffffff"
+    c_sub        = "rgba(0,0,0,0.75)" if dark_text else "rgba(255,255,255,0.85)"
+    c_tag_bg     = "rgba(0,0,0,0.18)" if dark_text else "rgba(255,255,255,0.35)"
+    c_thead_bg   = "rgba(0,0,0,0.15)" if dark_text else "rgba(255,255,255,0.25)"
+    c_row_alt    = "rgba(0,0,0,0.06)" if dark_text else "rgba(255,255,255,0.08)"
+
+    # 字体base64 - SourceHanSansCN（主字体）
     font_path = data_dir() / "fonts" / "SourceHanSansCN-Heavy.otf"
     font_b64  = ""
     if font_path.exists():
@@ -276,6 +318,18 @@ def _build_forecast_html(region: str, cache: dict, current_event: dict) -> str:
         src: url('data:font/otf;base64,{font_b64}') format('opentype');
     }}
     """ if font_b64 else ""
+
+    # 字体base64 - 微软雅黑（仅footer署名行）
+    msyh_path = data_dir() / "fonts" / "msyh.ttc"
+    msyh_b64  = ""
+    if msyh_path.exists():
+        msyh_b64 = base64.b64encode(msyh_path.read_bytes()).decode()
+    msyh_face = f"""
+    @font-face {{
+        font-family: 'MSYH';
+        src: url('data:font/ttc;base64,{msyh_b64}') format('truetype');
+    }}
+    """ if msyh_b64 else ""
 
     # 数据行
     items    = (cache.get("data") or {}).get("items", [])
@@ -292,7 +346,7 @@ def _build_forecast_html(region: str, cache: dict, current_event: dict) -> str:
             continue
         score_str = _fmt_score(score) if score is not None else "-"
         pred_str  = _fmt_score(prediction)
-        bg = "rgba(255,255,255,0.08)" if row_count % 2 == 0 else "transparent"
+        bg = "rgba(0,0,0,0.06)" if row_count % 2 == 0 else "transparent"
         rows_html += f"""
         <tr style="background:{bg}">
             <td>{rank:,}</td>
@@ -307,11 +361,13 @@ def _build_forecast_html(region: str, cache: dict, current_event: dict) -> str:
 <meta charset="UTF-8">
 <style>
 {font_face}
+{msyh_face}
 * {{ margin:0; padding:0; box-sizing:border-box; font-family:'SourceHan', sans-serif; }}
 body {{
     width: 660px;
-    background: linear-gradient({gradient});
+    {bg_body_css if use_custom_bg else f"background: linear-gradient({gradient});"}
     padding: 20px;
+    padding-bottom: 6px;
 }}
 .top-card {{
     background: rgba(255,255,255,0.18);
@@ -326,28 +382,34 @@ body {{
 .top-left {{ flex: 1; }}
 .top-left .tag {{
     display: inline-block;
-    background: rgba(255,255,255,0.35);
-    color: #fff;
+    background: {c_tag_bg};
+    color: {c_main};
     font-size: 12px;
     padding: 2px 8px;
     border-radius: 6px;
     margin-bottom: 6px;
 }}
 .top-left .title {{
-    color: #fff;
+    color: {c_main};
     font-size: 22px;
     font-weight: bold;
     margin-bottom: 4px;
 }}
 .top-left .time {{
-    color: rgba(255,255,255,0.85);
+    color: {c_sub};
     font-size: 15px;
     margin-bottom: 3px;
 }}
 .top-left .remain {{
-    color: #fff;
+    color: {c_main};
     font-size: 17px;
     font-weight: bold;
+}}
+.top-left .source {{
+    color: {c_main};
+    font-size: 17px;
+    font-weight: bold;
+    margin-top: 3px;
 }}
 .logo {{
     width: 180px;
@@ -362,33 +424,39 @@ body {{
     backdrop-filter: blur(8px);
     border-radius: 14px;
     overflow: hidden;
-    margin-bottom: 10px;
 }}
 table {{
     width: 100%;
     border-collapse: collapse;
-    color: #fff;
+    color: {c_main};
     font-size: 17px;
 }}
 thead tr {{
-    background: rgba(255,255,255,0.25);
+    background: {c_thead_bg};
 }}
 thead th {{
     padding: 10px 14px;
     text-align: center;
     font-size: 17px;
     font-weight: bold;
+    color: {c_main};
 }}
 tbody td {{
     padding: 9px 14px;
     text-align: center;
     font-size: 14px;
+    color: {c_main};
 }}
 .footer {{
     text-align: right;
-    color: rgba(255,255,255,0.7);
     font-size: 12px;
+    line-height: 1;
     margin-top: 4px;
+    padding-bottom: 0;
+}}
+.footer-sig {{
+    font-family: 'MSYH', 'Microsoft YaHei', sans-serif;
+    color: #fff;
 }}
 </style>
 </head>
@@ -399,6 +467,7 @@ tbody td {{
         <div class="title">【{region.upper()}-{event_id}】{event_name}</div>
         <div class="time">{start_str} ~ {end_str}</div>
         <div class="remain">{remain_str}</div>
+        <div class="source">数据来源: pjsk.moe(by 東雪)</div>
     </div>
     {"<img class='logo' src='" + logo_src + "'>" if logo_src else ""}
 </div>
@@ -413,7 +482,7 @@ tbody td {{
         </thead>
         <tbody>
             {rows_html}
-            <tr style="background:rgba(255,255,255,0.08)">
+            <tr style="background:{c_row_alt}">
                 <td style="font-size:13px">预测时间</td>
                 <td>-</td>
                 <td style="font-size:13px">{pred_time}</td>
@@ -426,7 +495,7 @@ tbody td {{
         </tbody>
     </table>
 </div>
-<div class="footer">数据来源: pjsk.moe(by 東雪) &nbsp;&nbsp; From Phantasmic(郁郁葱葱)</div>
+<div class="footer"><span class="footer-sig">Designed by Phantasmic(郁郁葱葱),deployed by {deployed_by}</span></div>
 </body>
 </html>"""
     return html

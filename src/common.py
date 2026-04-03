@@ -54,37 +54,6 @@ def set_group_enabled(group_id: str, enabled: bool):
     data[str(group_id)] = enabled
     _save_switch(data)
 
-# ───────────────────────── 绑定数据读写 ──────────────────────────
-
-def _bind_file() -> Path:
-    return data_dir() / "bind_data.json"
-
-def load_binds() -> dict:
-    """{ "qq号": {"cn": "id或null", "tw": "id或null", "jp": "id或null", "default": "cn"} }"""
-    f = _bind_file()
-    if not f.exists():
-        return {}
-    try:
-        return json.loads(f.read_text("utf-8"))
-    except Exception:
-        return {}
-
-def save_binds(data: dict):
-    _bind_file().write_text(json.dumps(data, ensure_ascii=False, indent=2), "utf-8")
-
-def get_user_binds(binds: dict, qq: str) -> dict:
-    if qq not in binds or not isinstance(binds[qq], dict):
-        binds[qq] = {"cn": None, "tw": None, "jp": None, "default": None}
-    return binds[qq]
-
-def has_any_bind(user: dict) -> bool:
-    return any(user.get(s) for s in ["cn", "tw", "jp"])
-
-def mask_id(sekai_id: str) -> str:
-    if len(sekai_id) <= 6:
-        return sekai_id
-    return "*" * (len(sekai_id) - 6) + sekai_id[-6:]
-
 # ───────────────────────── 常量 ──────────────────────────────────
 
 SERVERS     = ["cn", "tw", "jp"]
